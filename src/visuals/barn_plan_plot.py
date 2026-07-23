@@ -37,7 +37,7 @@ def _draw_model(fig: go.Figure, model: dict[str, Any], col: int, title: str, rem
             color = COLORS["danger"]
             dash = "dash"
         elif status in {"ny", "forsterkes"} or line.get("type") == "drager":
-            color = "#2563EB"
+            color = COLORS["new_beam"]
 
         fig.add_trace(
             go.Scatter(

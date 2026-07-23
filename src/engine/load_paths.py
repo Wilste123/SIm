@@ -4,6 +4,9 @@ from collections import defaultdict
 from typing import Any
 
 
+MIN_EFFECTIVE_AREA_M2 = 0.5
+
+
 def calculate_total_area_load(area_m2: float, load_kn_per_m2: float) -> float:
     return max(area_m2, 0.0) * max(load_kn_per_m2, 0.0)
 
@@ -96,7 +99,7 @@ def build_load_distribution(model: dict[str, Any], uncertainty_factor: float = 1
     line_loads_kn_per_m: dict[str, float] = {}
     area_total_kn_m2 = 0.0
     area_m2 = model.get("building", {}).get("lengde_m", 0.0) * model.get("building", {}).get("bredde_m", 0.0)
-    if area_m2 > 0:
+    if area_m2 >= MIN_EFFECTIVE_AREA_M2:
         area_total_kn_m2 = sum(totals_by_type.values()) / area_m2
 
     for support_id, width in tributary.items():

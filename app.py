@@ -200,7 +200,7 @@ def main() -> None:
             st.dataframe(reaction_df, use_container_width=True)
 
         if removal_risk["unresolved_load_paths"]:
-            st.error("Mangler datagrunnlag. Resultatet er kun en grov indikasjon.")
+            st.error("Uavklarte lastveier funnet. Resultatet er kun en grov indikasjon.")
             st.markdown("**Uavklarte lastveier:**")
             for finding in removal_risk["unresolved_load_paths"]:
                 st.write(f"- {finding}")

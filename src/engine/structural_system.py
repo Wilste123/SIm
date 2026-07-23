@@ -4,6 +4,9 @@ from dataclasses import asdict, dataclass
 from typing import Any
 
 
+COLUMN_SEGMENT_FRACTION = 0.08
+
+
 @dataclass
 class BuildingModel:
     lengde_m: float
@@ -196,9 +199,9 @@ def build_structural_model(
                     id=f"stolperekke_lin_{idx+1}",
                     navn=f"Stolperekke segment {idx+1}",
                     type="søylerekke",
-                    x_start_m=building.lengde_m * max(0.0, fraction - 0.08),
+                    x_start_m=building.lengde_m * max(0.0, fraction - COLUMN_SEGMENT_FRACTION),
                     y_start_m=row_y,
-                    x_end_m=building.lengde_m * min(1.0, fraction + 0.08),
+                    x_end_m=building.lengde_m * min(1.0, fraction + COLUMN_SEGMENT_FRACTION),
                     y_end_m=row_y,
                     etasje=1,
                     baerer_tak=True,

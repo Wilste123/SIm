@@ -8,4 +8,6 @@ COLORS = {
     "success": "#15803D",
     "muted": "#6B7280",
     "opening": "#94A3B8",
+    "new_beam": "#2563EB",
 }
+

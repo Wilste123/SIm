@@ -53,7 +53,11 @@ def estimate_new_span_after_removal(model: dict[str, Any], removed_support_id: s
             if line.get("id") != removed_support_id and line.get("status") != "fjernes" and line.get("type") == removed.get("type")
         ]
         if not same_axis:
-            return max(model.get("building", {}).get("bredde_m", 0.0), model.get("building", {}).get("lengde_m", 0.0))
+            dx = abs(removed.get("x_end_m", 0.0) - removed.get("x_start_m", 0.0))
+            dy = abs(removed.get("y_end_m", 0.0) - removed.get("y_start_m", 0.0))
+            if dx >= dy:
+                return float(model.get("building", {}).get("bredde_m", 0.0))
+            return float(model.get("building", {}).get("lengde_m", 0.0))
         removed_center = (removed.get("y_start_m", 0.0) + removed.get("y_end_m", 0.0)) / 2.0
         nearest = min(
             abs(((line.get("y_start_m", 0.0) + line.get("y_end_m", 0.0)) / 2.0) - removed_center)
