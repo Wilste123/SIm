@@ -7,6 +7,9 @@ from src.engine.load_paths import build_load_distribution
 from src.engine.support_reactions import calculate_reaction_increase
 
 
+MAX_CONSERVATIVE_SPAN_M = 7.0
+
+
 def apply_removal_scenario(model: dict[str, Any], scenario: dict[str, Any]) -> dict[str, Any]:
     after = deepcopy(model)
     remove_ids = set(scenario.get("remove_support_ids") or [])
@@ -148,7 +151,7 @@ def assess_removal_risk(before_model: dict[str, Any], after_model: dict[str, Any
     spans = [estimate_new_span_after_removal(before_model, support_id) for support_id in remove_ids]
     new_span = max(spans, default=0.0)
     # Konservativ spenn-grense i MVP for å flagge mulig kritisk endring tidlig.
-    if new_span > 7.0:
+    if new_span > MAX_CONSERVATIVE_SPAN_M:
         level = "red"
         critical_findings.append("Nytt estimert spenn overstiger konservativ anbefalt grense.")
         recommendations.append("Vurder ny drager/støtte med faglig dimensjonering.")

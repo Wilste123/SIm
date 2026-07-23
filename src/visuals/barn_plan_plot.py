@@ -36,7 +36,9 @@ def _draw_model(fig: go.Figure, model: dict[str, Any], subplot_column: int, titl
         if support_id in removed_ids or status == "fjernes":
             color = COLORS["danger"]
             dash = "dash"
-        elif status in {"ny", "forsterkes"} or line.get("type") == "drager":
+        elif line.get("type") == "drager":
+            color = COLORS["new_beam"]
+        elif status in {"ny", "forsterkes"}:
             color = COLORS["new_beam"]
 
         fig.add_trace(

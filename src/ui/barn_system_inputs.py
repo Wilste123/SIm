@@ -17,9 +17,12 @@ def render_barn_system_inputs() -> dict:
 
     g4, g5, g6, g7 = st.columns(4)
     gesimshoyde_m = g4.number_input("Høyde til gesims (m)", min_value=2.0, value=3.2, step=0.1)
-    monehoyde_m = g5.number_input("Høyde til møne (m)", min_value=2.5, value=5.0, step=0.1)
+    monehoyde_m = g5.number_input("Høyde til møne (m)", min_value=gesimshoyde_m + 0.1, value=max(5.0, gesimshoyde_m + 0.1), step=0.1)
     taktype = g6.selectbox("Taktype", TAKTYPE_OPTIONS, index=0)
     takvinkel_grader = g7.number_input("Takvinkel (grader)", min_value=0.0, max_value=60.0, value=27.0, step=1.0)
+
+    if monehoyde_m <= gesimshoyde_m:
+        st.warning("Mønehøyde bør være høyere enn gesimshøyde for valgt takgeometri.")
 
     konstruksjonstype = st.selectbox("Konstruksjonstype", KONSTRUKSJONSTYPE_OPTIONS, index=0)
 

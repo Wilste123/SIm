@@ -51,13 +51,8 @@ REPLACEMENT_BEAM_TYPES = {"limtredrager", "ståldrager", "trebjelke"}
 
 def _max_risk_level(*levels: str) -> str:
     score = {"green": 1, "yellow": 2, "red": 3}
-    highest = "green"
-    for level in levels:
-        if level not in score:
-            continue
-        if score[level] > score[highest]:
-            highest = level
-    return highest
+    valid_levels = [level for level in levels if level in score]
+    return max(valid_levels, key=lambda level: score[level], default="green")
 
 
 def main() -> None:

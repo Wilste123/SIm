@@ -5,6 +5,7 @@ from typing import Any
 
 
 # Andel av bygningslengden brukt som enkel representasjon av stolpesegment i plan.
+# 0.08 gir korte segmenter som viser stolpelinje-posisjon visuelt uten å dominere planfiguren i MVP.
 COLUMN_SEGMENT_FRACTION = 0.08
 
 
