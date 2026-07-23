@@ -49,11 +49,11 @@ st.set_page_config(page_title="LåveSim", layout="wide")
 
 def _max_risk_level(*levels: str) -> str:
     score = {"green": 1, "yellow": 2, "red": 3}
-    best = "green"
+    highest = "green"
     for level in levels:
-        if score.get(level, 2) > score[best]:
-            best = level
-    return best
+        if score.get(level, 2) > score[highest]:
+            highest = level
+    return highest
 
 
 def main() -> None:

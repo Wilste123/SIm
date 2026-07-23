@@ -87,6 +87,10 @@ def _support_map(model: dict[str, Any]) -> dict[str, dict[str, Any]]:
 
 
 def assess_removal_risk(before_model: dict[str, Any], after_model: dict[str, Any], scenario: dict[str, Any]) -> dict[str, Any]:
+    """Vurderer forenklet konsekvens ved fjerning av støtte.
+
+    Returnerer risk_level (green/yellow/red), funn, anbefalinger og støttebehov for midlertidig understøtting.
+    """
     before_dist = before_model.get("load_distribution") or build_load_distribution(
         before_model, before_model.get("assumptions", {}).get("usikkerhetsfaktor", 1.0)
     )

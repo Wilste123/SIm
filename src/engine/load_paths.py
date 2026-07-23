@@ -70,6 +70,10 @@ def detect_unresolved_load_paths(model: dict[str, Any]) -> list[str]:
 
 
 def build_load_distribution(model: dict[str, Any], uncertainty_factor: float = 1.0) -> dict[str, Any]:
+    """Fordeler areallaster forenklet på støtte-IDer med lik andel per lastflate.
+
+    uncertainty_factor skalerer laster konservativt (>=1.0). Returnerer totaler, reaksjoner, linjelast og uavklarte lastveier.
+    """
     totals_by_type: dict[str, float] = defaultdict(float)
     support_totals: dict[str, float] = defaultdict(float)
 

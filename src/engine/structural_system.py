@@ -154,6 +154,10 @@ def build_structural_model(
     system_input: dict[str, Any],
     load_input: dict[str, Any],
 ) -> dict[str, Any]:
+    """Bygger en forenklet bygningsmodell med bærelinjer, punktstøtter og lastflater for låveanalyse.
+
+    Returnerer en serialiserbar dict med nøkler: building, support_lines, point_supports, load_areas og assumptions.
+    """
     building = BuildingModel(
         lengde_m=float(building_input["lengde_m"]),
         bredde_m=float(building_input["bredde_m"]),
