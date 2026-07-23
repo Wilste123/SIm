@@ -22,7 +22,16 @@ from src.ui.removal_scenario_inputs import render_removal_scenario_inputs
 from src.ui.report_view import render_report_view
 from src.ui.sidebar_inputs import render_sidebar_inputs
 from src.ui.wall_input_form import render_wall_input_form
+from src.engine.global_stability import assess_3d_lateral_stability
+from src.engine.model_3d import generate_barn_3d_model
+from src.engine.removal_scenarios import apply_change_scenario
+from src.engine.structural_system import analyze_3d_change_before_after
+from src.export.model_3d_export import export_3d_analysis_to_json
+from src.ui.element_editor import render_element_selector_and_editor
+from src.ui.model_3d_inputs import render_model_3d_inputs
+from src.visuals.barn_3d_plot import plot_barn_3d
 from src.visuals.barn_plan_plot import create_barn_plan_figure
+from src.visuals.load_path_3d_plot import create_load_path_3d_figure
 from src.visuals.beam_plot import create_beam_figure
 from src.visuals.color_theme import COLORS
 from src.visuals.load_path_plot import create_load_path_figure
@@ -44,7 +53,14 @@ STRUCTURAL_DISCLAIMER = (
     "må løsningen vurderes av kvalifisert fagperson/byggingeniør, og søknadsplikt må avklares med kommunen."
 )
 
-st.set_page_config(page_title="LåveSim", layout="wide")
+DISCLAIMER_3D = (
+    "Dette er en forenklet 3D-visualisering og konsekvensanalyse. Den erstatter ikke "
+    "prosjektering eller vurdering fra byggingeniør. Ved fjerning eller endring av "
+    "bærende konstruksjoner må løsningen kontrolleres av kvalifisert fagperson. "
+    "Appen dimensjonerer ikke konstruksjoner etter Eurokode og skal ikke brukes som "
+    "endelig dokumentasjon."
+)
+
 
 REPLACEMENT_BEAM_TYPES = {"limtredrager", "ståldrager", "trebjelke"}
 
@@ -71,6 +87,7 @@ def main() -> None:
         "Last og uvær",
         "Materialliste",
         "Bæresystem / Låveanalyse",
+        "3D Låvemodell",
         "Rapport",
     ])
 
@@ -262,6 +279,122 @@ def main() -> None:
             "replacement_beam": replacement_result,
         }
 
+    # ── 3D Låvemodell ─────────────────────────────────────────────────────────
+    model_3d_before = None
+    model_3d_after = None
+    model_3d_analysis: dict = {}
+    model_3d_lateral: dict = {}
+    model_3d_scenario: dict = {}
+
+    with tabs[6]:
+        st.markdown("### 3D Låvemodell")
+        st.warning(DISCLAIMER_3D, icon="⚠️")
+
+        with st.expander("Bygningsmål og bæresystem", expanded=True):
+            inputs_3d = render_model_3d_inputs()
+
+        model_3d_before = generate_barn_3d_model(inputs_3d)
+
+        st.markdown("### Velg element og scenario")
+        model_3d_scenario = render_element_selector_and_editor(model_3d_before)
+
+        model_3d_after = apply_change_scenario(model_3d_before, model_3d_scenario)
+
+        selected_elem_id = model_3d_scenario.get("selected_element_id")
+
+        st.markdown("### 3D-visning: Før og etter")
+        col_before, col_after = st.columns(2)
+        with col_before:
+            st.caption("**Før endring** – valgt element markert gult")
+            st.plotly_chart(
+                plot_barn_3d(model_3d_before, selected_elem_id, "Før endring"),
+                use_container_width=True,
+                key="3d_plot_before",
+            )
+        with col_after:
+            st.caption("**Etter endring** – fjernet=rødt, nytt=blått")
+            st.plotly_chart(
+                plot_barn_3d(model_3d_after, title="Etter endring"),
+                use_container_width=True,
+                key="3d_plot_after",
+            )
+
+        st.markdown("### Forenklet lastvei- og risikoanalyse")
+        model_3d_analysis = analyze_3d_change_before_after(
+            model_3d_before, model_3d_after, model_3d_scenario, inputs_3d
+        )
+        model_3d_lateral = model_3d_analysis.get("lateral_stability", {})
+
+        level_3d = model_3d_analysis.get("risk_level", "green")
+        if level_3d == "red":
+            st.error(f"🔴 **Høy risiko** – {model_3d_analysis.get('summary', '')}", icon="🚨")
+        elif level_3d == "yellow":
+            st.warning(f"🟡 **Usikker/moderat risiko** – {model_3d_analysis.get('summary', '')}", icon="⚠️")
+        else:
+            st.success(f"🟢 **Lav indikert risiko** – {model_3d_analysis.get('summary', '')}", icon="✅")
+
+        lm1, lm2, lm3 = st.columns(3)
+        tot_before = model_3d_analysis.get("total_loads_before", {})
+        tot_after = model_3d_analysis.get("total_loads_after", {})
+        lm1.metric("Taklast (kN)", f"{tot_before.get('total_taklast_kn', 0):.1f}")
+        lm2.metric("Gulvlast (kN)", f"{tot_before.get('total_gulvlast_kn', 0):.1f}")
+        lm3.metric("Max lastøkning", f"{model_3d_analysis.get('max_increase_percent', 0):.0f} %")
+
+        if model_3d_analysis.get("unresolved_load_paths"):
+            st.error("**Uavklarte lastveier:**")
+            for finding in model_3d_analysis["unresolved_load_paths"]:
+                st.write(f"- {finding}")
+
+        if model_3d_analysis.get("critical_elements"):
+            st.markdown("**Kritiske funn:**")
+            for finding in model_3d_analysis["critical_elements"]:
+                st.write(f"- {finding}")
+
+        load_df_data = model_3d_analysis.get("load_increase_detail", {})
+        if load_df_data:
+            st.markdown("### Lastøkning per element")
+            st.plotly_chart(
+                create_load_path_3d_figure(model_3d_analysis),
+                use_container_width=True,
+                key="3d_load_path_fig",
+            )
+
+        st.markdown("### Horisontal stabilitet (forenklet)")
+        for finding in model_3d_lateral.get("findings", []):
+            st.write(f"- {finding}")
+
+        st.markdown("### Anbefalte tiltak")
+        for rec in model_3d_analysis.get("recommendations", []):
+            st.write(f"- {rec}")
+
+        req_temp = model_3d_analysis.get("requires_temporary_support", False)
+        req_eng = model_3d_analysis.get("requires_engineer", False)
+        t1, t2 = st.columns(2)
+        t1.info(
+            "**Midlertidig understøtting:** Anbefalt" if req_temp
+            else "**Midlertidig understøtting:** Ingen tydelig indikasjon i forenklet vurdering"
+        )
+        t2.info(
+            "**Fagperson anbefalt:** Ja – løsning bør kontrolleres av byggingeniør." if req_eng
+            else "**Fagperson anbefalt:** Kontroller likevel med fagperson ved usikkerhet."
+        )
+
+        st.markdown("### Eksport")
+        st.download_button(
+            label="Last ned 3D-analyse som JSON",
+            data=export_3d_analysis_to_json(
+                model_3d_before, model_3d_after,
+                model_3d_scenario, model_3d_analysis, model_3d_lateral,
+            ),
+            file_name="lavesim_3d_analyse.json",
+            mime="application/json",
+            key="3d_json_download",
+        )
+        st.caption(
+            "Alle resultater i 3D-fanen er forenklede estimater og pedagogiske indikasjoner. "
+            "Ikke prosjekteringsgrunnlag."
+        )
+
     report_payload = build_project_payload(
         project_data=project_data,
         wall_data=wall_data,
@@ -276,7 +409,7 @@ def main() -> None:
         barn_analysis=barn_analysis,
     )
 
-    with tabs[6]:
+    with tabs[7]:
         render_report_view(
             project_data=project_data,
             wall_data=wall_data,

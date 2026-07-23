@@ -118,3 +118,143 @@ def build_load_distribution(model: dict[str, Any], uncertainty_factor: float = 1
         "line_loads_kn_per_m": line_loads_kn_per_m,
         "unresolved_load_paths": detect_unresolved_load_paths(model),
     }
+
+
+# ─── 3D lastanalyse ───────────────────────────────────────────────────────────
+
+from src.engine.structural_elements import BarnModel3D, StructuralElement  # noqa: E402
+
+
+def calculate_total_loads(model: BarnModel3D, inputs: dict) -> dict:
+    """Beregner totale laster for tak og gulv basert på input. Forenklet estimat."""
+    factor = max(float(inputs.get("usikkerhetsfaktor", 1.2)), 1.0)
+    tak_areal = model.length_m * model.width_m
+    gulv_areal = tak_areal * model.floors
+
+    total_taklast = tak_areal * (
+        float(inputs.get("egenlast_tak_kn_m2", 0.8))
+        + float(inputs.get("snolast_kn_m2", 1.5))
+    ) * factor
+
+    total_gulvlast = gulv_areal * (
+        float(inputs.get("gulvlast_kn_m2", 2.0))
+        + float(inputs.get("lagerlast_kn_m2", 1.0))
+    ) * factor
+
+    return {
+        "tak_areal_m2": tak_areal,
+        "gulv_areal_m2": gulv_areal,
+        "total_taklast_kn": total_taklast,
+        "total_gulvlast_kn": total_gulvlast,
+        "usikkerhetsfaktor": factor,
+        "forenklet_estimat": True,
+    }
+
+
+def distribute_loads_to_bearing_elements(model: BarnModel3D, total_loads: dict) -> dict:
+    """Fordeler tak- og gulvlast jevnt på aktive bærende elementer."""
+    roof_supports = [
+        e for e in model.elements
+        if e.carries_roof and e.status != "removed"
+    ]
+    floor_supports = [
+        e for e in model.elements
+        if e.carries_floor and e.status != "removed"
+    ]
+
+    total_tak = total_loads.get("total_taklast_kn", 0.0)
+    total_gulv = total_loads.get("total_gulvlast_kn", 0.0)
+
+    tak_per = total_tak / len(roof_supports) if roof_supports else 0.0
+    gulv_per = total_gulv / len(floor_supports) if floor_supports else 0.0
+
+    loads: dict[str, float] = {}
+    for elem in model.elements:
+        if elem.status == "removed":
+            continue
+        v = 0.0
+        if elem.carries_roof:
+            v += tak_per
+        if elem.carries_floor:
+            v += gulv_per
+        if v > 0:
+            loads[elem.id] = round(v, 2)
+
+    return loads
+
+
+def detect_unresolved_load_paths_3d(model: BarnModel3D) -> list[str]:
+    """Sjekker om taklast og gulvlast har aktive bærelinjer. Forenklet kontroll."""
+    unresolved: list[str] = []
+
+    roof_supports = [
+        e for e in model.elements
+        if e.carries_roof and e.status != "removed"
+    ]
+    floor_supports = [
+        e for e in model.elements
+        if e.carries_floor and e.status != "removed"
+    ]
+
+    if not roof_supports:
+        unresolved.append("Taklast mangler tydelig lastvei – ingen aktiv bærelinje/søyle bærer tak.")
+    if model.floors > 1 and not floor_supports:
+        unresolved.append("Gulvlast i etasje mangler lastvei – ingen aktiv bærelinje/søyle bærer gulv.")
+
+    return unresolved
+
+
+def calculate_load_increase(before_loads: dict, after_loads: dict) -> dict:
+    """Beregner prosentvis lastøkning per element. Forenklet estimat."""
+    increases: dict[str, dict] = {}
+    all_ids = set(before_loads) | set(after_loads)
+    for eid in all_ids:
+        before = before_loads.get(eid, 0.0)
+        after = after_loads.get(eid, 0.0)
+        if before > 0:
+            pct = (after - before) / before * 100.0
+            label = "ny last" if before == 0 and after > 0 else f"{pct:+.1f} %"
+        elif after > 0:
+            pct = float("inf")
+            label = "ny last"
+        else:
+            pct = 0.0
+            label = "0 %"
+        increases[eid] = {
+            "before_kn": round(before, 2),
+            "after_kn": round(after, 2),
+            "increase_percent": round(pct, 1) if pct != float("inf") else 9999.0,
+            "label": label,
+        }
+    return increases
+
+
+def analyze_load_paths_before_after(
+    model_before: BarnModel3D,
+    model_after: BarnModel3D,
+    inputs: dict,
+) -> dict:
+    """Analyserer lastveier før og etter endring. Returnerer forenklet oversikt."""
+    total_loads_before = calculate_total_loads(model_before, inputs)
+    total_loads_after = calculate_total_loads(model_after, inputs)
+
+    before_dist = distribute_loads_to_bearing_elements(model_before, total_loads_before)
+    after_dist = distribute_loads_to_bearing_elements(model_after, total_loads_after)
+
+    load_increases = calculate_load_increase(before_dist, after_dist)
+    unresolved = detect_unresolved_load_paths_3d(model_after)
+
+    max_increase = max(
+        (v["increase_percent"] for v in load_increases.values() if v["increase_percent"] != 9999.0),
+        default=0.0,
+    )
+
+    return {
+        "total_loads_before": total_loads_before,
+        "total_loads_after": total_loads_after,
+        "before_distribution": before_dist,
+        "after_distribution": after_dist,
+        "load_increases": load_increases,
+        "unresolved_load_paths": unresolved,
+        "max_increase_percent": max_increase,
+    }
