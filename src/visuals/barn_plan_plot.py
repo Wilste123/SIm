@@ -8,7 +8,6 @@ from plotly.subplots import make_subplots
 from src.visuals.color_theme import COLORS
 
 
-
 def _draw_model(fig: go.Figure, model: dict[str, Any], col: int, title: str, removed_ids: set[str]) -> None:
     fig.add_annotation(text=title, xref=f"x{col}", yref=f"y{col}", x=0.5, y=1.06, showarrow=False)
 

@@ -5,7 +5,6 @@ import plotly.graph_objects as go
 from src.visuals.color_theme import COLORS
 
 
-
 def create_load_path_figure(before_distribution: dict, after_distribution: dict) -> go.Figure:
     before_supports = {
         **before_distribution.get("line_reactions_kn", {}),

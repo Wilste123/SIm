@@ -8,7 +8,6 @@ KONSTRUKSJONSTYPE_OPTIONS = ["tre", "stål", "blandet", "ukjent"]
 BAERELINJE_TYPES = ["yttervegg", "innervegg", "søylerekke", "drager", "ukjent"]
 
 
-
 def render_barn_system_inputs() -> dict:
     st.markdown("### Bygningsgeometri")
     g1, g2, g3 = st.columns(3)

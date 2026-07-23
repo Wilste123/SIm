@@ -5,7 +5,6 @@ import plotly.graph_objects as go
 from src.visuals.color_theme import COLORS
 
 
-
 def create_system_risk_figure(risk: dict, lateral: dict) -> go.Figure:
     risk_map = {"green": 1, "yellow": 2, "red": 3}
     overall = risk.get("risk_level", "yellow")

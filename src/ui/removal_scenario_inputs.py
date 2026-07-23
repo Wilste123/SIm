@@ -15,7 +15,6 @@ SCENARIO_OPTIONS = [
 REPLACEMENT_OPTIONS = ["ingen", "limtredrager", "ståldrager", "trebjelke", "ny stolpe", "ukjent"]
 
 
-
 def render_removal_scenario_inputs(support_options: list[dict]) -> dict:
     st.markdown("### Endringsscenario")
     scenario_name = st.selectbox("Velg scenario", SCENARIO_OPTIONS, index=0)
