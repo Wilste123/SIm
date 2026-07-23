@@ -147,6 +147,7 @@ def assess_removal_risk(before_model: dict[str, Any], after_model: dict[str, Any
 
     spans = [estimate_new_span_after_removal(before_model, support_id) for support_id in remove_ids]
     new_span = max(spans, default=0.0)
+    # Konservativ spenn-grense i MVP for å flagge mulig kritisk endring tidlig.
     if new_span > 7.0:
         level = "red"
         critical_findings.append("Nytt estimert spenn overstiger konservativ anbefalt grense.")

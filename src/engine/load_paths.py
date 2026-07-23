@@ -4,6 +4,7 @@ from collections import defaultdict
 from typing import Any
 
 
+# Minste effektive areal for å unngå ustabile arealbaserte intensiteter i forenklet modell.
 MIN_EFFECTIVE_AREA_M2 = 0.5
 
 

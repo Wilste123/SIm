@@ -4,6 +4,7 @@ from dataclasses import asdict, dataclass
 from typing import Any
 
 
+# Andel av bygningslengden brukt som enkel representasjon av stolpesegment i plan.
 COLUMN_SEGMENT_FRACTION = 0.08
 
 

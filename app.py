@@ -46,12 +46,16 @@ STRUCTURAL_DISCLAIMER = (
 
 st.set_page_config(page_title="LåveSim", layout="wide")
 
+REPLACEMENT_BEAM_TYPES = {"limtredrager", "ståldrager", "trebjelke"}
+
 
 def _max_risk_level(*levels: str) -> str:
     score = {"green": 1, "yellow": 2, "red": 3}
     highest = "green"
     for level in levels:
-        if score.get(level, 2) > score[highest]:
+        if level not in score:
+            continue
+        if score[level] > score[highest]:
             highest = level
     return highest
 
@@ -227,7 +231,7 @@ def main() -> None:
         st.caption("Alle resultater i denne fanen er forenklede estimater og pedagogiske indikasjoner.")
 
         replacement_result = None
-        if scenario_input.get("proposed_replacement") in {"limtredrager", "ståldrager", "trebjelke"}:
+        if scenario_input.get("proposed_replacement") in REPLACEMENT_BEAM_TYPES:
             max_line_load = max(after_distribution.get("line_loads_kn_per_m", {}).values(), default=0.0)
             material_map = {
                 "limtredrager": "GL30 limtre",

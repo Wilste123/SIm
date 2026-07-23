@@ -14,6 +14,7 @@ from src.engine.removal_scenarios import apply_removal_scenario, assess_removal_
 from src.engine.risk_assessment import assess_risk
 from src.engine.structural_system import build_structural_model
 from src.engine.weather_simulation import WEATHER_SCENARIOS
+from src.engine.wall_generator import generate_wall_layout
 from src.export.json_export import build_project_payload, export_project_json
 
 
@@ -40,15 +41,11 @@ class EngineTests(unittest.TestCase):
             "window_left_m": 0.0,
             "window_bottom_m": 0.0,
         }
-        from src.engine.wall_generator import generate_wall_layout
-
         result = generate_wall_layout(wall_data)
         self.assertGreaterEqual(result["regular_stud_count"], 8)
         self.assertEqual(result["extra_stud_count"], 0)
 
     def test_material_summary_and_json_export(self):
-        from src.engine.wall_generator import generate_wall_layout
-
         wall_data = {
             "wall_width_m": 3.6,
             "wall_height_m": 2.4,
@@ -111,8 +108,6 @@ class EngineTests(unittest.TestCase):
         self.assertIn("barn_system_analysis", parsed)
 
     def test_risk_assessment_red(self):
-        from src.engine.wall_generator import generate_wall_layout
-
         wall_data = {
             "wall_width_m": 4.8,
             "wall_height_m": 2.4,
