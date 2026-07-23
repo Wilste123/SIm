@@ -53,3 +53,104 @@ def assess_lateral_stability(model: dict[str, Any], scenario: dict[str, Any]) ->
         "findings": findings,
         "recommendations": recommendations,
     }
+
+
+# ─── 3D horisontal stabilitet ─────────────────────────────────────────────────
+
+from src.engine.structural_elements import BarnModel3D  # noqa: E402
+
+WALL_TYPES_3D = {"outer_wall", "inner_bearing_wall", "non_bearing_wall"}
+
+
+def assess_3d_lateral_stability(
+    model_before: BarnModel3D,
+    model_after: BarnModel3D,
+    scenario: dict,
+    inputs: dict,
+) -> dict:
+    """Vurderer forenklet horisontal stabilitet i 3D-modellen etter endring.
+
+    Returnerer risikonivå, funn og anbefalinger. Alle resultater er
+    forenklede estimater og skal ikke brukes som prosjekteringsgrunnlag.
+    """
+    findings: list[str] = []
+    recommendations: list[str] = []
+
+    selected_id = scenario.get("selected_element_id")
+    action = scenario.get("action", "behold")
+    vindscenario = inputs.get("vindscenario", "normal")
+
+    # Finn fjernet element
+    removed_elem = None
+    if selected_id and action == "fjern":
+        for elem in model_before.elements:
+            if elem.id == selected_id:
+                removed_elem = elem
+                break
+
+    if removed_elem is not None:
+        if removed_elem.provides_lateral_stability:
+            findings.append(
+                f"Fjernet element «{removed_elem.name}» bidrar til horisontal avstivning."
+            )
+            recommendations.append("Undersøk om veggen fungerer som avstivende skive.")
+
+        if removed_elem.element_type in WALL_TYPES_3D:
+            findings.append("Fjerning av vegg kan redusere byggets sideveis stivhet.")
+            recommendations.append(
+                "Kontroller innfesting mot tak/gulv og vurder kryssavstivning."
+            )
+
+    # Kontroller gjenværende avstivende vegger
+    active_walls = [
+        e for e in model_after.elements
+        if e.element_type in WALL_TYPES_3D and e.status != "removed"
+    ]
+    long_open_limit = max(model_after.length_m * 0.55, 8.0)
+    for wall in active_walls:
+        if wall.length >= long_open_limit or wall.width >= long_open_limit:
+            findings.append("Bygget har lange åpne veggflater som kan gi redusert sideveis stabilitet.")
+            recommendations.append("Vurder kryssavstivning eller ekstra stive veggskiver.")
+            break
+
+    # Søylerekker uten tverravstivning
+    col_elements = [
+        e for e in model_after.elements
+        if e.element_type in {"column", "column_row"} and e.status != "removed"
+    ]
+    lateral_walls = [
+        e for e in model_after.elements
+        if e.provides_lateral_stability and e.element_type in WALL_TYPES_3D and e.status != "removed"
+    ]
+    if col_elements and not lateral_walls:
+        findings.append("Søyler mangler tverravstivende vegger – mulig redusert stabilitet.")
+        recommendations.append("Kontroller tverravstivning av søylerekke.")
+
+    # Vind
+    if vindscenario in {"høy", "storm"} and (action == "fjern" or findings):
+        findings.append(
+            f"Vindscenario er «{vindscenario}» – økt usikkerhet for sideveis stabilitet."
+        )
+        recommendations.append(
+            "Ved høy vind/storm bør horisontal avstivning kontrolleres faglig før tiltak."
+        )
+
+    if not findings:
+        return {
+            "risk_level": "green",
+            "findings": ["Ingen tydelig indikasjon på redusert horisontal stabilitet."],
+            "recommendations": ["Bekreft likevel avstivningsprinsipp med fagperson før inngrep."],
+        }
+
+    if vindscenario == "storm" or len(findings) >= 3 or (removed_elem and removed_elem.provides_lateral_stability):
+        level = "red"
+    else:
+        level = "yellow"
+
+    recommendations.append("Dokumenter eksisterende konstruksjon med bilder før tiltak.")
+
+    return {
+        "risk_level": level,
+        "findings": findings,
+        "recommendations": list(dict.fromkeys(recommendations)),
+    }

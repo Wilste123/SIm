@@ -298,3 +298,146 @@ def build_structural_model(
             "forenklet_estimat": True,
         },
     }
+
+
+# ─── 3D endringsanalyse ───────────────────────────────────────────────────────
+
+from src.engine.structural_elements import BarnModel3D  # noqa: E402
+from src.engine.load_paths import analyze_load_paths_before_after  # noqa: E402
+from src.engine.global_stability import assess_3d_lateral_stability  # noqa: E402
+
+
+def generate_3d_recommendations(
+    analysis: dict,
+    lateral_stability: dict,
+    scenario: dict,
+) -> list[str]:
+    """Genererer anbefalte tiltak basert på analyse og scenario."""
+    recs: list[str] = []
+    action = scenario.get("action", "behold")
+    risk = analysis.get("risk_level", "green")
+
+    if risk == "red":
+        recs.append("⛔ Stopp og innhent vurdering fra byggingeniør før tiltak.")
+    if action == "fjern":
+        recs.append("Ikke fjern bærende konstruksjon uten prosjektert erstatningsløsning.")
+        recs.append("Bruk midlertidig understøtting før demontering av bærende element.")
+        recs.append("Kontroller om veggen/stolpen bærer tak, bjelkelag eller drager.")
+    if action == "erstatt med drager":
+        recs.append("Dimensjoner erstatningsdrager med fagperson.")
+        recs.append("Kontroller fundament under nye søyler.")
+    if analysis.get("unresolved_load_paths"):
+        recs.append("Avklar komplett lastvei fra tak/gulv ned til fundament.")
+    if analysis.get("max_increase_percent", 0) > 15:
+        recs.append("Kontroller punktlaster og understøtting ved lastøkning på gjenværende elementer.")
+    recs.append("Kontroller horisontal avstivning.")
+    recs.append("Undersøk om fjernet element fungerer som avstivende skive.")
+    recs.append("Dokumenter eksisterende konstruksjon med bilder før tiltak.")
+    recs.extend(lateral_stability.get("recommendations", []))
+    return list(dict.fromkeys(recs))  # deduplicate preserving order
+
+
+def analyze_3d_change_before_after(
+    model_before: BarnModel3D,
+    model_after: BarnModel3D,
+    scenario: dict,
+    inputs: dict,
+) -> dict:
+    """Analyserer konsekvens av 3D-endringsscenario.
+
+    Returnerer forenklet risikovurdering, lastanalyse, horisontal stabilitet
+    og anbefalinger. Alle resultater er forenklede estimater og skal ikke
+    brukes som endelig prosjekteringsgrunnlag.
+    """
+    load_analysis = analyze_load_paths_before_after(model_before, model_after, inputs)
+    lateral = assess_3d_lateral_stability(model_before, model_after, scenario, inputs)
+
+    selected_id = scenario.get("selected_element_id")
+    action = scenario.get("action", "behold")
+
+    selected_elem = next((e for e in model_before.elements if e.id == selected_id), None)
+    unresolved = load_analysis.get("unresolved_load_paths", [])
+    max_increase = load_analysis.get("max_increase_percent", 0.0)
+
+    critical_elements: list[str] = []
+    level = "green"
+
+    # Rød risiko-kriterier
+    if action == "fjern" and selected_elem and selected_elem.is_bearing:
+        repl = (scenario.get("action") == "erstatt med drager")
+        if not repl:
+            level = "red"
+            critical_elements.append(f"Bærende element «{selected_elem.name}» fjernes uten erstatning.")
+
+    if unresolved:
+        level = "red"
+        for finding in unresolved:
+            critical_elements.append(finding)
+
+    if max_increase > 50.0:
+        level = "red"
+        critical_elements.append(f"Lastøkning på gjenværende element er {max_increase:.0f} % (over 50 %).")
+
+    if lateral.get("risk_level") == "red" and level != "red":
+        level = "red"
+
+    # Gul risiko-kriterier
+    if level != "red":
+        if action == "erstatt med drager":
+            level = "yellow"
+            critical_elements.append("Erstatningsdrager er ikke dimensjonert i detalj.")
+        elif max_increase > 15.0:
+            level = "yellow"
+            critical_elements.append(f"Lastøkning på gjenværende element er {max_increase:.0f} % (15–50 %).")
+        elif lateral.get("risk_level") == "yellow":
+            level = "yellow"
+        elif selected_elem and selected_elem.is_bearing and action == "fjern":
+            level = "yellow"
+        elif inputs.get("materialtype", "tre") == "ukjent":
+            level = "yellow"
+            critical_elements.append("Materialtype er ukjent – høyere usikkerhet.")
+
+    if not critical_elements and action == "behold":
+        critical_elements.append("Ingen endring valgt – elementet er uendret.")
+    elif not critical_elements and level == "green":
+        critical_elements.append("Endringen ser begrenset ut i denne forenklede vurderingen.")
+
+    summary_map = {
+        "green": "Forenklet analyse indikerer lav konsekvens. Tiltak bør likevel kontrolleres.",
+        "yellow": "Forenklet analyse indikerer mulig risiko. Løsning bør kontrolleres faglig.",
+        "red": "Forenklet analyse indikerer høy risiko. Tiltak krever faglig vurdering.",
+    }
+
+    requires_temp = bool(
+        action in {"fjern", "erstatt med drager"}
+        and selected_elem
+        and selected_elem.is_bearing
+        and level in {"yellow", "red"}
+    )
+
+    recommendations = generate_3d_recommendations(
+        {"risk_level": level, **load_analysis},
+        lateral,
+        scenario,
+    )
+
+    return {
+        "risk_level": level,
+        "summary": summary_map[level],
+        "before_loads": load_analysis.get("before_distribution", {}),
+        "after_loads": load_analysis.get("after_distribution", {}),
+        "load_increase_percent": {
+            eid: v["increase_percent"]
+            for eid, v in load_analysis.get("load_increases", {}).items()
+        },
+        "load_increase_detail": load_analysis.get("load_increases", {}),
+        "total_loads_before": load_analysis.get("total_loads_before", {}),
+        "total_loads_after": load_analysis.get("total_loads_after", {}),
+        "unresolved_load_paths": unresolved,
+        "critical_elements": critical_elements,
+        "recommendations": recommendations,
+        "requires_engineer": level in {"yellow", "red"},
+        "requires_temporary_support": requires_temp,
+        "lateral_stability": lateral,
+        "max_increase_percent": max_increase,
+    }

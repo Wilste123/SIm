@@ -5,6 +5,7 @@ from typing import Any
 
 from src.engine.load_paths import build_load_distribution
 from src.engine.support_reactions import calculate_reaction_increase
+from src.engine.structural_elements import BarnModel3D, StructuralElement
 
 
 MAX_CONSERVATIVE_SPAN_M = 7.0
@@ -213,3 +214,118 @@ def assess_removal_risk(before_model: dict[str, Any], after_model: dict[str, Any
         "new_span_m": new_span,
         "unresolved_load_paths": unresolved,
     }
+
+
+# ─── 3D endringsscenario ─────────────────────────────────────────────────────
+
+def apply_change_scenario(model: BarnModel3D, scenario: dict[str, Any]) -> BarnModel3D:
+    """Kopierer 3D-modellen og anvender valgt endringsscenario.
+
+    Elementer slettes ikke fysisk – de får oppdatert status slik at de
+    kan vises rødt/blått i 3D-visningen. Dette er et forenklet estimat.
+    """
+    from dataclasses import replace as dc_replace
+
+    after = deepcopy(model)
+    selected_id = scenario.get("selected_element_id")
+    action = scenario.get("action", "behold")
+
+    # Oppdater status på valgt element
+    for idx, elem in enumerate(after.elements):
+        if elem.id != selected_id:
+            continue
+
+        if action == "fjern":
+            after.elements[idx] = dc_replace(elem, status="removed")
+            if selected_id not in after.removed_elements:
+                after.removed_elements.append(selected_id)
+
+        elif action == "forsterk":
+            after.elements[idx] = dc_replace(elem, status="reinforced")
+
+        elif action == "erstatt med drager":
+            after.elements[idx] = dc_replace(elem, status="removed")
+            if selected_id not in after.removed_elements:
+                after.removed_elements.append(selected_id)
+            repl = scenario.get("replacement", {})
+            new_beam = _make_replacement_beam(elem, repl, after)
+            after.new_elements.append(new_beam)
+            after.elements.append(new_beam)
+            if repl.get("legg_til_soyle_under"):
+                new_col = _make_support_column(elem, after)
+                after.new_elements.append(new_col)
+                after.elements.append(new_col)
+
+        elif action == "legg til søyle under":
+            new_col = _make_support_column(elem, after)
+            after.new_elements.append(new_col)
+            after.elements.append(new_col)
+
+        elif action == "marker som bærende":
+            after.elements[idx] = dc_replace(elem, is_bearing=True)
+
+        elif action == "marker som ikke-bærende":
+            after.elements[idx] = dc_replace(elem, is_bearing=False)
+
+        break
+
+    return after
+
+
+def _make_replacement_beam(
+    original: StructuralElement,
+    repl: dict[str, Any],
+    model: BarnModel3D,
+) -> StructuralElement:
+    """Lager ny drager-StructuralElement basert på erstatningsinput."""
+    h_mm = float(repl.get("drager_hoyde_mm", 300))
+    b_mm = float(repl.get("drager_bredde_mm", 90))
+    mat = str(repl.get("drager_materiale", "limtre"))
+    span = float(repl.get("spennvidde_m") or model.length_m)
+
+    beam_h = h_mm / 1000.0
+    beam_w = b_mm / 1000.0
+    beam_z = original.z + original.height - beam_h
+
+    return StructuralElement(
+        id=f"ny_drager_{original.id}",
+        name=f"Ny drager (erstatter {original.name})",
+        element_type="beam",
+        x=original.x,
+        y=original.y + original.width / 2.0 - beam_w / 2.0,
+        z=beam_z,
+        length=min(span, model.length_m),
+        width=beam_w,
+        height=beam_h,
+        material=mat,
+        is_bearing=True,
+        carries_roof=original.carries_roof,
+        carries_floor=original.carries_floor,
+        status="new",
+    )
+
+
+def _make_support_column(
+    above_element: StructuralElement,
+    model: BarnModel3D,
+) -> StructuralElement:
+    """Lager ny støttesøyle under et element."""
+    col_size = 0.2
+    cx = above_element.x + above_element.length / 2.0
+    cy = above_element.y + above_element.width / 2.0
+    return StructuralElement(
+        id=f"ny_soyle_{above_element.id}",
+        name=f"Ny søyle under {above_element.name}",
+        element_type="column",
+        x=cx - col_size / 2.0,
+        y=cy - col_size / 2.0,
+        z=0.0,
+        length=col_size,
+        width=col_size,
+        height=above_element.z,
+        material=above_element.material,
+        is_bearing=True,
+        carries_roof=above_element.carries_roof,
+        carries_floor=above_element.carries_floor,
+        status="new",
+    )
