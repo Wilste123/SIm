@@ -173,16 +173,16 @@ def build_structural_model(
     )
 
     if system_input.get("har_innvendig_baerevegg"):
-        x_pos = max(0.0, min(float(system_input.get("innervegg_posisjon_m", building.bredde_m / 2.0)), building.bredde_m))
+        innervegg_y_pos = max(0.0, min(float(system_input.get("innervegg_posisjon_m", building.bredde_m / 2.0)), building.bredde_m))
         supports.append(
             SupportLine(
                 id="innervegg_1",
                 navn="Innvendig bærevegg",
                 type="innervegg",
                 x_start_m=0.0,
-                y_start_m=x_pos,
+                y_start_m=innervegg_y_pos,
                 x_end_m=building.lengde_m,
-                y_end_m=x_pos,
+                y_end_m=innervegg_y_pos,
                 etasje=building.antall_etasjer,
                 baerer_tak=True,
                 baerer_bjelkelag=True,

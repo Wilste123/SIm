@@ -8,8 +8,8 @@ from plotly.subplots import make_subplots
 from src.visuals.color_theme import COLORS
 
 
-def _draw_model(fig: go.Figure, model: dict[str, Any], col: int, title: str, removed_ids: set[str]) -> None:
-    fig.add_annotation(text=title, xref=f"x{col}", yref=f"y{col}", x=0.5, y=1.06, showarrow=False)
+def _draw_model(fig: go.Figure, model: dict[str, Any], subplot_col: int, title: str, removed_ids: set[str]) -> None:
+    fig.add_annotation(text=title, xref=f"x{subplot_col}", yref=f"y{subplot_col}", x=0.5, y=1.06, showarrow=False)
 
     building = model.get("building", {})
     width = float(building.get("bredde_m", 0.0))
@@ -24,7 +24,7 @@ def _draw_model(fig: go.Figure, model: dict[str, Any], col: int, title: str, rem
         line={"color": COLORS["secondary"], "width": 2},
         fillcolor="rgba(0,0,0,0)",
         row=1,
-        col=col,
+        col=subplot_col,
     )
 
     for line in model.get("support_lines", []):
@@ -49,7 +49,7 @@ def _draw_model(fig: go.Figure, model: dict[str, Any], col: int, title: str, rem
                 showlegend=False,
             ),
             row=1,
-            col=col,
+            col=subplot_col,
         )
 
     for point in model.get("point_supports", []):
@@ -73,7 +73,7 @@ def _draw_model(fig: go.Figure, model: dict[str, Any], col: int, title: str, rem
                 showlegend=False,
             ),
             row=1,
-            col=col,
+            col=subplot_col,
         )
 
 
@@ -81,8 +81,8 @@ def create_barn_plan_figure(before_model: dict[str, Any], after_model: dict[str,
     fig = make_subplots(rows=1, cols=2, subplot_titles=("Før", "Etter"))
     removed_ids = set(scenario.get("remove_support_ids") or [])
 
-    _draw_model(fig, before_model, col=1, title="Eksisterende bæresystem", removed_ids=removed_ids)
-    _draw_model(fig, after_model, col=2, title="Etter endring", removed_ids=removed_ids)
+    _draw_model(fig, before_model, subplot_col=1, title="Eksisterende bæresystem", removed_ids=removed_ids)
+    _draw_model(fig, after_model, subplot_col=2, title="Etter endring", removed_ids=removed_ids)
 
     color = COLORS["success"] if risk_level == "green" else COLORS["warning"] if risk_level == "yellow" else COLORS["danger"]
     fig.add_annotation(

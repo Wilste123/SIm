@@ -59,11 +59,13 @@ def estimate_new_span_after_removal(model: dict[str, Any], removed_support_id: s
                 return float(model.get("building", {}).get("bredde_m", 0.0))
             return float(model.get("building", {}).get("lengde_m", 0.0))
         removed_center = (removed.get("y_start_m", 0.0) + removed.get("y_end_m", 0.0)) / 2.0
-        nearest = min(
+        distances = [
             abs(((line.get("y_start_m", 0.0) + line.get("y_end_m", 0.0)) / 2.0) - removed_center)
             for line in same_axis
-        )
-        return nearest * 2.0
+        ]
+        if not distances:
+            return 0.0
+        return min(distances) * 2.0
 
     point_supports = model.get("point_supports", [])
     removed_point = next((point for point in point_supports if point.get("id") == removed_support_id), None)
