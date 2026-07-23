@@ -213,7 +213,7 @@ def calculate_load_increase(before_loads: dict, after_loads: dict) -> dict:
         after = after_loads.get(eid, 0.0)
         if before > 0:
             pct = (after - before) / before * 100.0
-            label = "ny last" if before == 0 and after > 0 else f"{pct:+.1f} %"
+            label = f"{pct:+.1f} %"
         elif after > 0:
             pct = float("inf")
             label = "ny last"

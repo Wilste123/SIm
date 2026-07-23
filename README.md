@@ -81,7 +81,7 @@ konsekvensanalyse ved endring av bærende konstruksjoner.
 2. Fyll inn bygningsmål og bæresystem under "Bygningsmål og bæresystem"
 3. Velg element fra nedtrekkslisten under "Velg element i modellen"
 4. Velg handling (fjern, forsterk, erstatt med drager, osv.)
-5. Trykk på *Etter endring*-figuren for å se konsekvensen
+5. Se **Etter endring**-figuren for å observere konsekvensen
 6. Les risikoindikasjon og anbefalte tiltak
 7. Last ned analysen som JSON ved behov
 

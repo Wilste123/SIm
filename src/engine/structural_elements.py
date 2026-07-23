@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List
 
 
 VALID_ELEMENT_TYPES = {
@@ -50,7 +49,7 @@ class StructuralElement:
     provides_lateral_stability: bool = False
     status: str = "existing"
     load_kn: float = 0.0
-    connected_to: List[str] = field(default_factory=list)
+    connected_to: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -62,7 +61,7 @@ class BarnModel3D:
     roof_type: str
     roof_angle_deg: float
     floors: int
-    elements: List[StructuralElement] = field(default_factory=list)
-    removed_elements: List[str] = field(default_factory=list)
-    new_elements: List[StructuralElement] = field(default_factory=list)
-    assumptions: List[str] = field(default_factory=list)
+    elements: list[StructuralElement] = field(default_factory=list)
+    removed_elements: list[str] = field(default_factory=list)
+    new_elements: list[StructuralElement] = field(default_factory=list)
+    assumptions: list[str] = field(default_factory=list)

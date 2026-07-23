@@ -216,7 +216,6 @@ def assess_removal_risk(before_model: dict[str, Any], after_model: dict[str, Any
     }
 
 
-
 # ─── 3D endringsscenario ─────────────────────────────────────────────────────
 
 def apply_change_scenario(model: BarnModel3D, scenario: dict[str, Any]) -> BarnModel3D:

@@ -101,7 +101,7 @@ def assess_3d_lateral_stability(
                 "Kontroller innfesting mot tak/gulv og vurder kryssavstivning."
             )
 
-    # Kontroller gjenværende avtivende vegger
+    # Kontroller gjenværende avstivende vegger
     active_walls = [
         e for e in model_after.elements
         if e.element_type in WALL_TYPES_3D and e.status != "removed"
