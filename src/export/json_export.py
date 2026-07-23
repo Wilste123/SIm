@@ -17,6 +17,7 @@ def build_project_payload(
     risk: dict,
     material_df: pd.DataFrame,
     material_summary: dict,
+    barn_analysis: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     wall_result_export = {
         key: value
@@ -24,7 +25,8 @@ def build_project_payload(
         if key not in {"openings"}
     }
     wall_result_export["openings"] = [opening.__dict__ for opening in wall_result["openings"]]
-    return {
+
+    payload = {
         "project": project_data,
         "wall_input": wall_data,
         "wall_result": wall_result_export,
@@ -36,6 +38,9 @@ def build_project_payload(
         "material_list": material_df.to_dict(orient="records"),
         "material_summary": material_summary,
     }
+    if barn_analysis is not None:
+        payload["barn_system_analysis"] = barn_analysis
+    return payload
 
 
 def export_project_json(payload: dict[str, Any]) -> str:
